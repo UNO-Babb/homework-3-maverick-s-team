@@ -3,59 +3,91 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hexagon Tile Game</title>
+    <title>Linear Game Board</title>
     <style>
-        body {
+        .board {
+            display: flex;
+            justify-content: center;
+            margin: 20px;
+        }
+        .cell {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #333;
             display: flex;
             justify-content: center;
             align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: Arial, sans-serif;
-            background-color: #f0f0f0;
+            font-size: 1em;
+            position: relative;
         }
-        #board {
-            display: grid;
-            grid-template-columns: repeat(10, 60px);
-            grid-template-rows: repeat(10, 52px);
-            gap: 2px;
+        .roll-button {
+            margin: 20px;
+            padding: 10px 20px;
+            font-size: 1.2em;
+            cursor: pointer;
         }
-        .hex {
-            width: 60px;
-            height: 52px;
-            background-color: lightgray;
-            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-            transition: background-color 0.2s;
+        .player {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            position: absolute;
         }
     </style>
 </head>
 <body>
+    <h1>Linear Game Board</h1>
+    <div class="board" id="gameBoard">
+        {% for i in range(20) %}
+        <div class="cell" id="cell-{{ i }}">{{ i }}</div>
+        {% endfor %}
+    </div>
+    <div class="roll-button" onclick="rollDice()">Roll Dice</div>
+    <div id="status"></div>
+    <script>
+        let players = {{ game_state.players | tojson }};
+        let currentPlayerIndex = {{ game_state.current_player_index }};
+        let winner = {{ game_state.winner | tojson }};
 
-<div id="board">
-    <!-- Hexagonal tiles will be added here on clicks -->
-</div>
+        function updateBoard() {
+            // Clear previous player indicators
+            document.querySelectorAll('.player').forEach(p => p.remove());
 
-<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-<script>
-    $(document).ready(function() {
-        // Create an empty board of hex tiles
-        for (let i = 0; i < 100; i++) {
-            const hexTile = $('<div class="hex"></div>');
-            hexTile.data("clicked", false);  // Track if a tile has been clicked
-            $('#board').append(hexTile);
+            // Place player indicators
+            players.forEach(player => {
+                const cell = document.getElementById(`cell-${player.position}`);
+                const playerIndicator = document.createElement('div');
+                playerIndicator.classList.add('player');
+                playerIndicator.style.backgroundColor = player.color;
+                cell.appendChild(playerIndicator);
+            });
+
+            // Update status
+            const status = document.getElementById('status');
+            if (winner) {
+                status.textContent = `${winner} Wins!`;
+            } else {
+                status.textContent = `${players[currentPlayerIndex].name}'s turn. Roll the dice!`;
+            }
         }
 
-        // Add color to hex tiles on click
-        $('#board').on('click', '.hex', function() {
-            if (!$(this).data("clicked")) {  // Only allow one click per tile
-                $.getJSON('/add_tile', function(data) {
-                    $(this).css('background-color', data.color);
-                    $(this).data("clicked", true);  // Mark as clicked
-                }.bind(this));
-            }
-        });
-    });
-</script>
+        async function rollDice() {
+            if (winner) return;
 
+            const response = await fetch('/roll', { method: 'POST' });
+            const data = await response.json();
+
+            if (data.winner) {
+                winner = data.winner;
+                updateBoard();
+                return;
+            }
+
+            players[currentPlayerIndex].position = data.new_position;
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
+            updateBoard();
+        }
+
+        updateBoard();
+    </script>
 </body>
 </html>
