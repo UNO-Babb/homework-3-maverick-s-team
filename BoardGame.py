@@ -12,7 +12,7 @@ game_state = {
     "current_player_index": 0,
     "winner": None
 }
-
+ 
 # Game rules
 SPECIAL_SPOTS = [5, 10, 15]
 WINNING_SPOT = 19
